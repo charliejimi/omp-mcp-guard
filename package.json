@@ -1,0 +1,29 @@
+{
+	"name": "omp-mcp-guard",
+	"version": "0.1.0",
+	"private": true,
+	"description": "An oh-my-pi (omp) extension package for MCP tools: a call guard that blocks MCP calls before the server runs them (blocked tools and servers, description pins, poisoned descriptions, allow-list mode), a result guard that withholds or labels what MCP servers return, a filter that drops server instructions from omp 18.2.8's system prompt, and one shared ledger.",
+	"type": "module",
+	"license": "MIT",
+	"keywords": ["oh-my-pi", "omp", "coding-agent", "ai-agent", "mcp", "prompt-injection", "tool-poisoning", "guardrails"],
+	"omp": {
+		"extensions": ["./src/call-guard.ts", "./src/result-guard.ts", "./src/instructions-guard.ts"]
+	},
+	"bin": {
+		"mcp-guard": "./bin/mcp-guard.ts"
+	},
+	"files": ["src", "bin", "examples", "README.md", "README.zh-TW.md", "LICENSE", "CHANGELOG.md"],
+	"scripts": {
+		"test": "bun test/run.ts"
+	},
+	"engines": {
+		"bun": ">=1.3.14"
+	},
+	"devDependencies": {
+		"@oh-my-pi/pi-ai": "18.2.8",
+		"@oh-my-pi/pi-coding-agent": "18.2.8",
+		"@oh-my-pi/pi-tui": "18.2.8",
+		"@oh-my-pi/pi-utils": "18.2.8",
+		"@types/bun": "1.3.14"
+	}
+}

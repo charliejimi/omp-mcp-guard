@@ -1,0 +1,15 @@
+{
+	"mcpServers": {
+		"docs": {
+			"type": "http",
+			"url": "https://mcp.example.com/mcp",
+			"instructions": false
+		},
+		"tickets": {
+			"command": "npx",
+			"args": ["-y", "@example/tickets-mcp"],
+			"instructions": false
+		}
+	},
+	"disabledServers": ["server-another-tool-adds"]
+}

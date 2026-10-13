@@ -1,0 +1,19 @@
+# omp settings overlay for opening a repository you do not trust (Day27 integrated diagram, step 4).
+# Load it with `omp --config <this file>`, and keep it outside that repository. omp ranks
+# global < project < --config < flags, so a repository's own .omp/config.yml cannot turn project MCP
+# back on past this file.
+#
+# Write keys nested as below: omp ignores the flat dotted form (`mcp.enableProjectConfig: false`).
+mcp:
+  # Skip every project-level MCP config (.cursor/mcp.json, .mcp.json, .vscode/mcp.json, ...):
+  # the commands in them never start. Servers in your own ~/.omp/agent/mcp.json still load.
+  enableProjectConfig: false
+
+tools:
+  approval:
+    # bash and eval can reach the network and files without any MCP hook seeing it.
+    bash: deny
+    eval: deny
+    # Deny MCP tools you never want called, by their registered name (mcp__<server>_<tool>).
+    # A deny stops the call before the server and before any extension sees it.
+    mcp__docs_delete_page: deny

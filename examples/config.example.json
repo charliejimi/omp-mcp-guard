@@ -1,0 +1,15 @@
+{
+	"ledger": "~/.omp/mcp-guard-ledger.jsonl",
+	"pins": "~/.config/omp-mcp-guard/pins.json",
+	"snapshot": "~/.omp/mcp-guard-seen.json",
+	"logDir": "~/.omp/logs",
+	"trustedServers": ["docs"],
+	"blockedServers": ["server-on-blocklist"],
+	"blockedTools": ["mcp__docs_delete_page"],
+	"callPolicy": "allowlist",
+	"allowTools": ["mcp__docs_search", "mcp__tickets_get"],
+	"unpinned": "block",
+	"requireProjectMcpOff": true,
+	"serverInstructions": "drop",
+	"blockCollided": true
+}
