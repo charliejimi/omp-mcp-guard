@@ -21,7 +21,7 @@
 import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import { type GuardOptions, guardSettings, shown } from "./config";
 import { openLedger, sessionOf } from "./ledger";
-import { isMcpToolName, safeName, serverPrefix, xdTarget } from "./names";
+import { isMcpToolName, type McpResourceRef, mcpResource, safeName, serverPrefix, xdTarget } from "./names";
 import { classifyOne, loadPins, type ToolLike, writePrivateJson } from "./pins";
 import { type Collision, logSignature, readProcessLog } from "./proclog";
 
@@ -35,7 +35,7 @@ export interface CallGuardOptions extends Omit<GuardOptions, "logDir"> {
 }
 
 type ProjectMcp = "off" | "on" | "unknown";
-type Via = "direct" | "xd" | "docs";
+type Via = "direct" | "xd" | "docs" | "resource";
 
 interface Verdict {
 	decision: "allow" | "block";
@@ -125,14 +125,36 @@ export function createMcpCallGuard(options: CallGuardOptions = {}) {
 			return fresh;
 		};
 
-		const decide = (target: string): Verdict => {
-			const block = (reason: string, text: string, fields: Record<string, unknown> = {}): Verdict => ({ decision: "block", reason, text, fields });
+		const block = (reason: string, text: string, fields: Record<string, unknown> = {}): Verdict => ({ decision: "block", reason, text, fields });
+
+		/** The checks that block every MCP call, whatever it names. */
+		const precheck = (): Verdict | undefined => {
 			if (error) return block("config-error", `the guard's config could not be used (${error}); MCP calls are blocked until it is fixed.`);
 			if (pins.error) return block("pins-error", `the pins file could not be read (${pins.error}); MCP calls are blocked until it is fixed.`);
 			if (settings.requireProjectMcpOff && projectMcp === "on") {
 				return block("project-mcp-on", "omp's effective mcp.enableProjectConfig is true, so the project's own MCP servers may be loaded; MCP calls are blocked. Start omp with an overlay that sets mcp.enableProjectConfig to false.");
 			}
 			if (settings.requireProjectMcpOff && projectMcp !== "off") return block("project-mcp-unknown", "the guard could not read omp's effective mcp.enableProjectConfig, so MCP calls are blocked.");
+			return undefined;
+		};
+
+		/**
+		 * A `read` of an MCP resource. Before the call omp names no server, so a blocked server is
+		 * matched by the resource's scheme, which only catches a server that uses its own name; the
+		 * result guard labels or withholds whatever this lets through.
+		 */
+		const decideResource = (resource: McpResourceRef): Verdict => {
+			const early = precheck();
+			if (early) return early;
+			const server = [...settings.blockedServers].find(name => name.toLowerCase() === resource.scheme);
+			if (server !== undefined) return block("blocked-server", `it reads an MCP resource whose scheme names blocked server ${safeName(server)}.`, { server: safeName(server) });
+			if (settings.callPolicy === "allowlist") return block("not-allowlisted", "callPolicy is allowlist, and MCP resource reads are not on allowTools.");
+			return { decision: "allow", reason: null, text: "", fields: {} };
+		};
+
+		const decide = (target: string): Verdict => {
+			const early = precheck();
+			if (early) return early;
 			if (settings.blockedTools.has(target)) return block("blocked-tool", "the tool is on blockedTools.");
 			const server = [...settings.blockedServers].find(name => target.startsWith(serverPrefix(name)));
 			if (server !== undefined) {
@@ -256,9 +278,13 @@ export function createMcpCallGuard(options: CallGuardOptions = {}) {
 			const tool = event.toolName;
 			let target: string;
 			let via: Via;
+			const resource = tool === "read" ? mcpResource((event.input as { path?: unknown } | undefined)?.path) : null;
 			if (isMcpToolName(tool)) {
 				target = tool;
 				via = "direct";
+			} else if (resource) {
+				target = safeName(resource.uri);
+				via = "resource";
 			} else if (tool === "write" || tool === "read") {
 				const name = xdTarget((event.input as { path?: unknown } | undefined)?.path);
 				if (!name || !isMcpToolName(name) || !currentTool(name)) return undefined;
@@ -273,11 +299,11 @@ export function createMcpCallGuard(options: CallGuardOptions = {}) {
 			try {
 				refreshInventory(session);
 			} catch {}
-			const verdict = decide(target);
+			const verdict = resource ? decideResource(resource) : decide(target);
 			const blocks = verdict.decision === "block" && (via !== "docs" || DOCS_REASONS.has(verdict.reason ?? ""));
 			const line = { event: "call", session, call: event.toolCallId, tool: safeName(target), via, ...verdict.fields };
 			if (!blocks) {
-				if (via === "direct") ledger.append({ ...line, decision: "allow", reason: null });
+				if (via === "direct" || via === "resource") ledger.append({ ...line, decision: "allow", reason: null });
 				return undefined;
 			}
 			ledger.append({ ...line, decision: "block", reason: verdict.reason });

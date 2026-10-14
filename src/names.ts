@@ -48,6 +48,38 @@ export function xdTarget(value: unknown): string | null {
 	return name;
 }
 
+// The schemes omp 18.2.8's internal router serves itself, plus the web and file schemes `read`
+// handles before it reaches the router. A read of any other scheme falls through to an MCP resource,
+// served by whichever connected server advertises it.
+const NON_MCP_SCHEMES = new Set(["omp", "agent", "artifact", "memory", "local", "vault", "skill", "rule", "security", "issue", "pr", "history", "ssh", "xd", "http", "https", "file", "data"]);
+
+export interface McpResourceRef {
+	/** The resource URI the server is asked for. */
+	uri: string;
+	/** Its scheme, lower-cased: the only hint of which server answers, and one the server picks itself. */
+	scheme: string;
+}
+
+/**
+ * The MCP resource a `read` path names: `mcp://<resource-uri>`, or a server's own `scheme://…` that
+ * no omp handler claims. `opaque` also accepts `scheme:rest` without `//`, which omp routes the same
+ * way; a check made before the call leaves it off, so a file name with a colon is not taken for one.
+ */
+export function mcpResource(value: unknown, opaque = false): McpResourceRef | null {
+	if (typeof value !== "string") return null;
+	const trimmed = value.trim();
+	const match = /^([A-Za-z][A-Za-z0-9+.-]*):(\/\/)?/.exec(trimmed);
+	if (!match || match[1]!.length < 2) return null;
+	const scheme = match[1]!.toLowerCase();
+	if (scheme === "mcp") {
+		const uri = trimmed.slice(match[0].length);
+		if (uri.length === 0) return null;
+		return { uri, scheme: (/^([A-Za-z][A-Za-z0-9+.-]*):/.exec(uri)?.[1] ?? "").toLowerCase() };
+	}
+	if (NON_MCP_SCHEMES.has(scheme) || (!match[2] && !opaque)) return null;
+	return { uri: trimmed, scheme };
+}
+
 /** A config key or server name ends up in model context and in notices; keep only name characters. */
 export function safeName(value: unknown): string {
 	return String(value ?? "")

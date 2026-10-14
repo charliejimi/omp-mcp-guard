@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1] - 2026-10-14
+
+### Fixed
+
+- MCP resource reads are checked: `read mcp://<resource-uri>`, and a read of a server's own `scheme://…` that no omp handler claims. Before, they reached the model unlabelled, even from a blocked server, and left no ledger line.
+  - Call guard: blocks them on an unusable config or pins file, when project MCP is not off, when the scheme names a blocked server, and under `callPolicy: "allowlist"`. Ledger lines carry `via: "resource"`.
+  - Result guard: withholds them on a config error, a blocked server's scheme, or an injection pattern, and labels every other one as untrusted MCP data. Ledger lines carry `resource: true`.
+  - omp drops the answering server from these results, and a server picks its own scheme, so a resource result is never passed unlabelled, even under a trusted server's scheme. A blocked server whose resources use another scheme than its name is labelled, not blocked.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added

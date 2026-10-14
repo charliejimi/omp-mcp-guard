@@ -106,6 +106,28 @@ describe("call guard: what gets blocked before the server runs (AC-2)", () => {
 		expect((await g.toolCall("mcp__docs_b_list", {}))?.block).toBe(true);
 		expect(calls(s).at(-1)).toMatchObject({ reason: "not-allowlisted" });
 	});
+
+	it("checks a read of an MCP resource, which reaches a server without an mcp__ name", async () => {
+		const s = setup();
+		const g = await load(s, { blockedServers: ["evil"] });
+		expect((await g.toolCall("read", { path: "mcp://evil://inbox" }))?.block).toBe(true);
+		expect(calls(s).at(-1)).toMatchObject({ via: "resource", decision: "block", reason: "blocked-server", server: "evil" });
+		expect((await g.toolCall("read", { path: "evil://inbox" }))?.block).toBe(true);
+		expect(await g.toolCall("read", { path: "mcp://wiki://inbox" })).toBeUndefined();
+		expect(calls(s).at(-1)).toMatchObject({ via: "resource", decision: "allow" });
+		// omp's own schemes, web and file URLs, and file names with a colon are not MCP resources.
+		for (const target of ["skill://demo", "artifact://3", "https://example.com", "notes:2024.md"]) {
+			expect({ target, result: await g.toolCall("read", { path: target }) }).toEqual({ target, result: undefined });
+		}
+		const a = setup();
+		const allow = await load(a, { callPolicy: "allowlist", allowTools: ["mcp__docs_search"] });
+		expect((await allow.toolCall("read", { path: "mcp://wiki://inbox" }))?.block).toBe(true);
+		expect(calls(a).at(-1)).toMatchObject({ via: "resource", reason: "not-allowlisted" });
+		const p = setup();
+		const project = await load(p, {}, tools(), { projectMcp: true });
+		expect((await project.toolCall("read", { path: "mcp://wiki://inbox" }))?.block).toBe(true);
+		expect(calls(p).at(-1)).toMatchObject({ via: "resource", reason: "project-mcp-on" });
+	});
 });
 
 describe("call guard: xd:// device calls", () => {

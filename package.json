@@ -1,6 +1,6 @@
 {
 	"name": "omp-mcp-guard",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": true,
 	"description": "An oh-my-pi (omp) extension package for MCP tools: a call guard that blocks MCP calls before the server runs them (blocked tools and servers, description pins, poisoned descriptions, allow-list mode), a result guard that withholds or labels what MCP servers return, a filter that drops server instructions from omp 18.2.8's system prompt, and one shared ledger.",
 	"type": "module",
